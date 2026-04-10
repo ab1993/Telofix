@@ -17,9 +17,7 @@ public class UserController {
 
     @PostMapping("/user")
     public void setUser(@RequestBody User user){
-        user.setId(1L);
-        user.setName("John Doe");
-        user.setEmail("john.doe@example.com");
+        // Removed hardcoded values
         userRepo.save(user);
     }
 }
