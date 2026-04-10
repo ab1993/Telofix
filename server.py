@@ -16,17 +16,16 @@ app = FastAPI(title="Telofix Webhook Gateway")
 active_tickets = {}
 
 def execute_agent_loop(issue_key: str):
-    """The background thread that runs the AI."""
     print(f"\n🚀 [Telofix] Booting up agent for ticket: {issue_key}")
     try:
-        # This calls your LangGraph logic
         run_agent(issue_key)
-        print(f"✅ [Telofix] Successfully resolved {issue_key}")
+        # Only print success if run_agent didn't raise an exception
+        print(f"✅ [Telofix] Agent finished processing {issue_key}")
     except Exception as e:
-        print(f"❌ [Telofix] Agent failed on {issue_key}: {str(e)}")
+        print(f"❌ [Telofix] Agent crashed on {issue_key}: {str(e)}")
     finally:
-        # Always remove the ticket from the active queue when done or failed
-        active_tickets.pop(issue_key, None)
+        #redis_client.delete(f"telofix:lock:{issue_key}")
+        print(f"🔓 [Telofix] Lock released for {issue_key}")
 
 @app.post("/webhook/jira-trigger")
 async def handle_jira_webhook(request: Request, background_tasks: BackgroundTasks):
