@@ -1,5 +1,6 @@
 import os
 import subprocess
+import requests
 from langchain_core.tools import tool
 
 @tool
