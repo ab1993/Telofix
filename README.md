@@ -1,3 +1,6 @@
+![Alt text](images/telofix-product.png)
+
+
 # 🤖 Telofix: Autonomous AI Bug Resolver (Level-1 Developer)
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)

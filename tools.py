@@ -51,20 +51,28 @@ def run_maven_test(project_directory: str) -> str:
 
 @tool
 def push_changes_to_git(project_directory: str, branch_name: str, commit_message: str) -> str:
-     """Pushes the modified code in the workspace back to the remote repository."""
-     try:
-         # 1. Add all changes
-         subprocess.run(["git", "add", "."], cwd=project_directory, check=True)
+    """Commits and pushes the modified code back to the remote repository."""
+    try:
+        # Configuration for the workspace
+        subprocess.run(["git", "config", "user.name", "Telofix AI"], cwd=project_directory, check=True)
+        subprocess.run(["git", "config", "user.email", "ai-agent@telofix.com"], cwd=project_directory, check=True)
 
-         # 2. Commit
-         subprocess.run(["git", "commit", "-m", commit_message], cwd=project_directory, check=True)
+        # 1. Check if there are actually changes to commit!
+        status_check = subprocess.run(["git", "status", "--porcelain"], cwd=project_directory, capture_output=True, text=True)
 
-         # 3. Push to origin
-         subprocess.run(["git", "push", "origin", branch_name], cwd=project_directory, check=True)
+        if not status_check.stdout.strip():
+            return "No changes detected in the workspace. The code is already correct. Skip pushing and creating a PR."
 
-         return f"Successfully pushed changes to branch {branch_name}"
-     except Exception as e:
-         return f"Error pushing to Git: {e}"
+        # 2. Git operations (if changes exist)
+        subprocess.run(["git", "add", "."], cwd=project_directory, check=True)
+        subprocess.run(["git", "commit", "-m", commit_message], cwd=project_directory, check=True)
+        subprocess.run(["git", "push", "-u", "origin", branch_name], cwd=project_directory, check=True)
+
+        return f"Successfully pushed changes to branch {branch_name} on remote."
+    except subprocess.CalledProcessError as e:
+        return f"Error pushing to Git: {e.stderr}"
+    except Exception as e:
+        return f"Unexpected error: {str(e)}"
 
 @tool
 def create_github_pull_request(issue_key: str, branch_name: str, body: str) -> str:
