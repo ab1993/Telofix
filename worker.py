@@ -31,6 +31,9 @@ def start_worker():
             if msg.error():
                 if msg.error().code() == KafkaError._PARTITION_EOF:
                     continue
+                elif msg.error().code() == KafkaError.UNKNOWN_TOPIC_OR_PART:
+                    # Topic doesn't exist yet, just wait patiently
+                    continue
                 else:
                     print(f"❌ [Worker] Consumer error: {msg.error()}")
                     break
