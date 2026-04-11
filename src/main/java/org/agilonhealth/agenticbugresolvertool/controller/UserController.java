@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/v1/agilon")
 public class UserController {
 
-    @Autowired
     private UserRepo userRepo;
 
     @PostMapping("/user")
