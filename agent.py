@@ -6,9 +6,8 @@ from requests.auth import HTTPBasicAuth
 from langgraph.prebuilt import create_react_agent
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
-
-# NEW: Import the git manager we just created
 from git_manager import setup_workspace
+from prompt_registry import build_system_prompt
 
 # --- THE CRITICAL IMPORTS ---
 from tools import list_files, read_file, write_file, run_maven_test, push_changes_to_git, create_github_pull_request
@@ -52,11 +51,16 @@ def update_jira_ticket(issue_key, final_summary):
         print("✅ Ticket successfully transitioned to Done.")
 
 # 3. Execution Entry Point
-def run_agent(issue_key: str):
+def run_agent(issue_key: str, worker_type: str = "java", previous_files: list = None):
     # Initialize variables at the top level
     abs_workspace = None
     usage = {"prompt_tokens": 0, "completion_tokens": 0}
+    touched_files = set() # NEW: The memory tracker
     final_ai_message = "Agent failed to complete the task."
+
+    # Make sure previous_files is a list
+    if previous_files is None:
+        previous_files = []
 
     try:
         # 1. Setup Workspace
@@ -67,28 +71,13 @@ def run_agent(issue_key: str):
 
         feature_branch = f"feature/telofix-{issue_key}"
 
-        # 2. Setup Agent (RESTORED ORIGINAL PROMPT)
-        system_prompt = f"""
-        You are an expert Java Spring Boot debugging agent.
-
-        CRITICAL PATH INFO:
-        - Your isolated workspace directory for this task is: {abs_workspace}
-        - You MUST use this exact absolute path when calling `list_files`, `read_file`, `write_file`, and `run_maven_test`.
-        - All Java source files are located under: {abs_workspace}/src/main/java/
-        - All Test files are located under: {abs_workspace}/src/test/java/
-
-        INSTRUCTIONS:
-        1. Locate the file causing the issue.
-        2. Write the fix using the write_file tool.
-        3. Run `run_maven_test` by passing the absolute workspace path ({abs_workspace}).
-        4. Once tests pass, provide a clean summary of the fix.
-        4. CRITICAL: Once tests pass, you MUST call `push_changes_to_git` using the branch name '{feature_branch}' and the workspace path '{abs_workspace}'.
-        5. After pushing, provide your final summary.
-        6. MANDATORY FINAL STEP: Call `create_github_pull_request` to open a PR for your changes.
-        7. Provide the PR link in your final summary.
-
-        CRITICAL RULE: If the Maven tests pass, YOUR JOB IS DONE. Immediately stop.
-        """
+        # 2. 🧠 Fetch the prompt dynamically in ONE line
+        system_prompt = build_system_prompt(
+            worker_type=worker_type,
+            workspace=abs_workspace,
+            feature_branch=feature_branch,
+            previous_files=previous_files
+        )
 
         agent_executor = create_react_agent(llm, tools, prompt=system_prompt)
 
@@ -102,6 +91,14 @@ def run_agent(issue_key: str):
         ):
             message = chunk["messages"][-1]
             message.pretty_print()
+
+            # NEW: Eavesdrop on tool calls to catch write_file events
+            if hasattr(message, 'tool_calls') and message.tool_calls:
+                for tool_call in message.tool_calls:
+                    if tool_call.get('name') == 'write_file':
+                        file_path = tool_call.get('args', {}).get('file_path')
+                        if file_path:
+                            touched_files.add(file_path)
 
             # Capture tokens as we go
             if hasattr(message, 'usage_metadata') and message.usage_metadata:
@@ -118,18 +115,22 @@ def run_agent(issue_key: str):
         final_ai_message = f"Error: {str(e)}"
 
     finally:
-        # Update Jira BEFORE deleting the files
         update_jira_ticket(issue_key, final_ai_message)
 
-        # 4. FINAL CLEANUP
+        # FINAL CLEANUP
         if abs_workspace and os.path.exists(abs_workspace):
             if os.getenv("KEEP_WORKSPACE", "false").lower() != "true":
                 print(f"🧹 [Cleanup] Task finished. Deleting: {abs_workspace}")
                 shutil.rmtree(abs_workspace)
 
-    return usage
+    # NEW: Return both usage AND the memory of touched files
+    return {
+        "usage": usage,
+        "touched_files": list(touched_files)
+    }
 
-# 4. CLI Fallback
+# 4. CLI Fallback (Updated to match dictionary return)
 if __name__ == "__main__":
     issue_key = sys.argv[1] if len(sys.argv) > 1 else "TEST-123"
-    run_agent(issue_key)
+    result = run_agent(issue_key)
+    print("Final Result:", result)

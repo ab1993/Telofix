@@ -40,10 +40,11 @@ async def jira_webhook(request: Request):
         data = await request.json()
         issue_key = data.get("issue", {}).get("key")
 
-        # 1. Detect Language (Default to Java for now)
-        # In the future, we can get this from a Jira custom field or repo analysis
+        # 1. Detect Language (Default to 'java' if not provided)
+        # In a real Jira setup, this could come from a custom field like data.get("issue").get("fields").get("customfield_10010")
         project_lang = data.get("project_type", "java").lower()
 
+        # 2. Dynamic Topic Construction
         target_topic = f"telofix.tasks.{project_lang}"
 
         # --- 2. INCREMENT THE PROMETHEUS COUNTER ---
@@ -73,7 +74,9 @@ async def jira_webhook(request: Request):
         # Flush ensures the message is sent before the function returns
         producer.flush()
 
-        return {"status": "queued", "issue_key": issue_key}
+        print(f"🚦 [Gateway] Routed {issue_key} to topic: {target_topic}")
+
+        return {"status": "queued", "topic": target_topic, "issue_key": issue_key}
 
     except Exception as e:
         print(f"❌ [Telofix] Critical Error: {str(e)}")
