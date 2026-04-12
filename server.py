@@ -3,10 +3,19 @@ import json
 from fastapi import FastAPI, Request
 from confluent_kafka import Producer
 from dotenv import load_dotenv
+from prometheus_client import make_asgi_app, Counter
 
 load_dotenv()
 
 app = FastAPI()
+
+# --- 1. PROMETHEUS METRICS SETUP ---
+# Create an ASGI app for the metrics endpoint and mount it
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
+
+# Define our first metric: A counter for webhooks
+WEBHOOK_COUNTER = Counter('telofix_webhooks_received_total', 'Total Jira webhooks received')
 
 # --- Kafka Configuration ---
 KAFKA_CONF = {
@@ -31,6 +40,15 @@ async def jira_webhook(request: Request):
         data = await request.json()
         issue_key = data.get("issue", {}).get("key")
 
+        # 1. Detect Language (Default to Java for now)
+        # In the future, we can get this from a Jira custom field or repo analysis
+        project_lang = data.get("project_type", "java").lower()
+
+        target_topic = f"telofix.tasks.{project_lang}"
+
+        # --- 2. INCREMENT THE PROMETHEUS COUNTER ---
+        WEBHOOK_COUNTER.inc()
+
         if not issue_key:
             return {"status": "ignored", "reason": "No issue key found in payload"}
 
@@ -44,8 +62,9 @@ async def jira_webhook(request: Request):
         # Produce the message
         print(f"📥 [Telofix] Webhook received for {issue_key}. Sending to Kafka...")
 
+        # 3. Produce to the specific language topic
         producer.produce(
-            TOPIC_NAME,
+            target_topic,
             key=issue_key,
             value=json.dumps(payload),
             callback=delivery_report
