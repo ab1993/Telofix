@@ -10,8 +10,8 @@ from git_manager import setup_workspace
 from prompt_registry import build_system_prompt
 
 # --- THE CRITICAL IMPORTS ---
-from tools import list_files, read_file, write_file, run_maven_test, push_changes_to_git, create_github_pull_request
-tools = [list_files, read_file, write_file, run_maven_test, push_changes_to_git, create_github_pull_request]
+from tools import list_files, read_file, write_file, execute_python_script, push_changes_to_git, create_github_pull_request
+tools = [list_files, read_file, write_file, execute_python_script, push_changes_to_git, create_github_pull_request]
 
 load_dotenv()
 
@@ -84,8 +84,10 @@ def run_agent(issue_key: str, worker_type: str = "java", previous_files: list = 
         # 3. Exhaust the Generator (The Loop)
         print(f"🚀 Starting AI reasoning for {issue_key}...")
 
+        # In worker-data/agent.py, find the agent_executor.stream loop:
         for chunk in agent_executor.stream(
-                {"messages": [("user", f"Fix the bug for {issue_key}.")]},
+                # Change this line to force it to write a script:
+                {"messages": [("user", f"Write a Python script called 'fix_data.py' in the workspace to deduplicate MongoDB users, and then execute it using the execute_python_script tool.")]},
                 config={"recursion_limit": 50},
                 stream_mode="values"
         ):

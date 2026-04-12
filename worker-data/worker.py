@@ -15,7 +15,7 @@ def init_db():
         conn = psycopg2.connect(DB_URL)
         cur = conn.cursor()
         cur.execute("""
-                    CREATE TABLE IF NOT EXISTS task_ledger (
+                    CREATE TABLE IF NOT EXISTS task_data_ledger (
                                                                issue_key VARCHAR(50) PRIMARY KEY,
                         status VARCHAR(50),
                         execution_time_sec FLOAT,
@@ -25,10 +25,10 @@ def init_db():
                         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                         )
                     """)
-        cur.execute("ALTER TABLE task_ledger ADD COLUMN IF NOT EXISTS prompt_tokens INTEGER DEFAULT 0;")
-        cur.execute("ALTER TABLE task_ledger ADD COLUMN IF NOT EXISTS completion_tokens INTEGER DEFAULT 0;")
-        cur.execute("ALTER TABLE task_ledger ADD COLUMN IF NOT EXISTS total_cost_usd FLOAT DEFAULT 0.0;")
-        cur.execute("ALTER TABLE task_ledger ADD COLUMN IF NOT EXISTS touched_files JSONB DEFAULT '[]'::jsonb;")
+        cur.execute("ALTER TABLE task_data_ledger ADD COLUMN IF NOT EXISTS prompt_tokens INTEGER DEFAULT 0;")
+        cur.execute("ALTER TABLE task_data_ledger ADD COLUMN IF NOT EXISTS completion_tokens INTEGER DEFAULT 0;")
+        cur.execute("ALTER TABLE task_data_ledger ADD COLUMN IF NOT EXISTS total_cost_usd FLOAT DEFAULT 0.0;")
+        cur.execute("ALTER TABLE task_data_ledger ADD COLUMN IF NOT EXISTS touched_files JSONB DEFAULT '[]'::jsonb;")
         conn.commit()
         cur.close()
         conn.close()
@@ -41,7 +41,7 @@ def get_previous_touched_files(issue_key):
     try:
         conn = psycopg2.connect(DB_URL)
         cur = conn.cursor()
-        cur.execute("SELECT touched_files FROM task_ledger WHERE issue_key = %s;", (issue_key,))
+        cur.execute("SELECT touched_files FROM task_data_ledger WHERE issue_key = %s;", (issue_key,))
         result = cur.fetchone()
         cur.close()
         conn.close()
@@ -64,7 +64,7 @@ def log_task_to_db(issue_key, status, exec_time, tokens=None, touched_files=None
         conn = psycopg2.connect(DB_URL)
         cur = conn.cursor()
         cur.execute(
-            """INSERT INTO task_ledger
+            """INSERT INTO task_data_ledger
                (issue_key, status, execution_time_sec, prompt_tokens, completion_tokens, total_cost_usd, touched_files)
                VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb)
                    ON CONFLICT (issue_key) DO UPDATE
@@ -89,7 +89,7 @@ KAFKA_CONF = {
     'auto.offset.reset': 'earliest'
 }
 # Only listen to Java tasks now!
-TOPIC_NAME = os.getenv("KAFKA_TOPIC_TASKS", "telofix.tasks.java")
+TOPIC_NAME = os.getenv("KAFKA_TOPIC_TASKS", "telofix.tasks.python-data")
 
 def start_worker():
     init_db()
@@ -118,7 +118,7 @@ def start_worker():
             start_time = time.time()
 
             # The worker defines its identity based on the topic or an Env variable
-            worker_type = os.getenv("WORKER_TYPE", "java")
+            worker_type = os.getenv("WORKER_TYPE", "python-data")
 
             try:
                 # Pass memory in, get full dictionary out

@@ -1,0 +1,26 @@
+# Telofix Python Agent Dependencies
+
+# LangChain & LangGraph (The orchestration and agent loop)
+langchain>=0.2.0
+langchain-core>=0.2.0
+langchain-openai>=0.1.0
+langgraph>=0.0.60
+
+# Data Validation (Used by LangChain for tool calling)
+pydantic>=2.0.0
+
+# Environment Management
+python-dotenv>=1.0.0
+fastapi>=0.100.0
+uvicorn>=0.23.0
+
+#kafka setup
+confluent-kafka
+
+# Observability
+prometheus-client
+psycopg2-binary
+
+# Data specific:
+pymongo==4.6.2
+pandas==2.2.1
