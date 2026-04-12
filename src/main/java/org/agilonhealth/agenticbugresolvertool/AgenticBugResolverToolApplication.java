@@ -9,6 +9,6 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 public class AgenticBugResolverToolApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(AgenticBugResolverToolApplication.class, args)
+        SpringApplication.run(AgenticBugResolverToolApplication.class, args);
     }
 }
