@@ -83,6 +83,27 @@ services:
       - PYTHONUNBUFFERED=1
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - POSTGRES_URL=postgresql://telofix:telofix_password@postgres:5432/telofix_analytics
+    volumes:
+      # Map the root file to the container's /app directory
+      - ./prompt_registry.py:/app/prompt_registry.py
+    depends_on:
+      - kafka
+      - postgres
+
+  telofix-worker-data:
+    build: ./worker-data
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - KAFKA_TOPIC_TASKS=telofix.tasks.python-data
+      - WORKER_TYPE=python-data
+      - POSTGRES_URL=postgresql://telofix:telofix_password@postgres:5432/telofix_analytics
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      # Map the root file to the container's /app directory
+      - ./prompt_registry.py:/app/prompt_registry.py
     depends_on:
       - kafka
       - postgres
