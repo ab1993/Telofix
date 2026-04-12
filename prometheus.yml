@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 5s # Scrape every 5 seconds for real-time graphs
+
+scrape_configs:
+  - job_name: 'telofix-gateway'
+    static_configs:
+      - targets: ['telofix-gateway:8080']
+
+  - job_name: 'telofix-worker'
+    static_configs:
+      - targets: ['telofix-worker:8000'] # We will expose metrics on 8000 later

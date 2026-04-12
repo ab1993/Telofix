@@ -16,3 +16,7 @@ uvicorn>=0.23.0
 
 #kafka setup
 confluent-kafka
+
+# Observability
+prometheus-client
+psycopg2-binary
